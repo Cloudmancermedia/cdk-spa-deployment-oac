@@ -1,9 +1,11 @@
 import { BlockPublicAccess, Bucket } from 'aws-cdk-lib/aws-s3';
-import { CfnOriginAccessControl, ViewerProtocolPolicy, CloudFrontWebDistribution, CloudFrontAllowedMethods, CloudFrontAllowedCachedMethods, CfnDistribution } from 'aws-cdk-lib/aws-cloudfront';
+import { CfnOriginAccessControl, ViewerProtocolPolicy, CloudFrontWebDistribution, CloudFrontAllowedMethods, CloudFrontAllowedCachedMethods, CfnDistribution, Distribution } from 'aws-cdk-lib/aws-cloudfront';
 import { Construct } from 'constructs';
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
+import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
+import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
+import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 
 interface S3CloudFrontStackProps extends StackProps {
   environment: string;
@@ -15,7 +17,7 @@ export class CdkSpaDeploymentOacStack extends Stack {
 
     const { environment } = props;
 
-    const domainName = 'domainname.com'
+    const domainName = 'modernserverless.io'
 
     const hostedZone = new HostedZone(
       this,
@@ -25,7 +27,7 @@ export class CdkSpaDeploymentOacStack extends Stack {
       }
     );
 
-    const cert = new Certificate(
+    const certificate = new Certificate(
       this,
       'Cert',
       {
@@ -51,27 +53,48 @@ export class CdkSpaDeploymentOacStack extends Stack {
     });
 
     // CloudFront Distribution
-    const cloudFrontWebDistribution = new CloudFrontWebDistribution(this, `MyDistribution-${environment}`, {
-      originConfigs: [
-        {
-          s3OriginSource: {
-            s3BucketSource: bucket,
-          },
-          behaviors: [
-            {
-              isDefaultBehavior: true,
-              allowedMethods: CloudFrontAllowedMethods.GET_HEAD,
-              compress: true,
-              cachedMethods: CloudFrontAllowedCachedMethods.GET_HEAD,
-              viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-              minTtl: Duration.seconds(0),
-              maxTtl: Duration.seconds(86400),
-              defaultTtl: Duration.seconds(3600),
-            },
-          ],
-        },
-      ]
-    });
+    // const cloudFrontWebDistribution = new CloudFrontWebDistribution(this, `MyDistribution-${environment}`, {
+    //   originConfigs: [
+    //     {
+    //       s3OriginSource: {
+    //         s3BucketSource: bucket,
+    //       },
+    //       behaviors: [
+    //         {
+    //           isDefaultBehavior: true,
+    //           allowedMethods: CloudFrontAllowedMethods.GET_HEAD,
+    //           compress: true,
+    //           cachedMethods: CloudFrontAllowedCachedMethods.GET_HEAD,
+    //           viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    //           minTtl: Duration.seconds(0),
+    //           maxTtl: Duration.seconds(86400),
+    //           defaultTtl: Duration.seconds(3600),
+    //         },
+    //       ],
+    //     },
+    //   ]
+    // });
+
+    const cloudFrontWebDistribution = new Distribution(this, 'Distribution', {
+      defaultRootObject: 'index.html',
+      defaultBehavior: {
+        origin: new S3Origin(
+          bucket,
+        ),
+        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS
+      },
+      domainNames: [domainName],
+      certificate
+    })
+
+    new ARecord(
+      this,
+      'ARecord',
+      {
+        zone: hostedZone,
+        target: RecordTarget.fromAlias(new CloudFrontTarget(cloudFrontWebDistribution))
+      }
+    );
 
     const cfnDistribution = cloudFrontWebDistribution.node.defaultChild as CfnDistribution
 

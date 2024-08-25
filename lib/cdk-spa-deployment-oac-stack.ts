@@ -40,8 +40,6 @@ export class CdkSpaDeploymentOacStack extends Stack {
     const bucket = new Bucket(this, `MyBucket-${environment}`, {
       bucketName: `my-spa-bucket-${environment}`,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      // removalPolicy: RemovalPolicy.DESTROY,
-      // autoDeleteObjects: true,
     });
 
     // Single Origin Access Control for the environment

@@ -6,6 +6,7 @@ import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
 import { Effect, PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 
 interface S3CloudFrontStackProps extends StackProps {
   environment: string;
@@ -76,6 +77,15 @@ export class CdkSpaDeploymentOacStack extends Stack {
           ],
         },
       ]
+    });
+
+    const dist = new Distribution(this, 'Distribution', {
+      defaultBehavior: {
+        origin: origin.S3BucketOrigin.withOriginAccessControl(bucket),
+        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+
+      },
+      defaultRootObject: 'index.html',
     });
 
     new ARecord(

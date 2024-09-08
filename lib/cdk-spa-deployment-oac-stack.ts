@@ -81,7 +81,7 @@ export class CdkSpaDeploymentOacStack extends Stack {
 
     const dist = new Distribution(this, 'Distribution', {
       defaultBehavior: {
-        origin: origin.S3BucketOrigin.withOriginAccessControl(bucket),
+        origin: S3BucketOrigin.withOriginAccessControl(bucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
 
       },

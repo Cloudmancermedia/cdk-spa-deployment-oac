@@ -18,7 +18,7 @@ export class CdkSpaDeploymentOacStack extends Stack {
 
     const { environment } = props;
 
-    const domainName = 'YOUR_DOMAIN_HERE'
+    const domainName = 'modernserverless.io'
 
     const hostedZone = new HostedZone(
       this,
@@ -43,49 +43,15 @@ export class CdkSpaDeploymentOacStack extends Stack {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
 
-    // Single Origin Access Control for the environment
-    const oac = new CfnOriginAccessControl(this, `MyOAC-${environment}`, {
-      originAccessControlConfig: {
-        name: `MyOAC-${environment}`,
-        originAccessControlOriginType: 's3',
-        signingBehavior: 'always',
-        signingProtocol: 'sigv4',
-      },
-    });
-
-    // CloudFront Distribution
-    const cloudFrontWebDistribution = new CloudFrontWebDistribution(this, `MyDistribution-${environment}`, {
-      viewerCertificate: ViewerCertificate.fromAcmCertificate(certificate, {
-        aliases: [domainName],
-      }),
-      originConfigs: [
-        {
-          s3OriginSource: {
-            s3BucketSource: bucket,
-          },
-          behaviors: [
-            {
-              isDefaultBehavior: true,
-              allowedMethods: CloudFrontAllowedMethods.GET_HEAD,
-              compress: true,
-              cachedMethods: CloudFrontAllowedCachedMethods.GET_HEAD,
-              viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-              minTtl: Duration.seconds(0),
-              maxTtl: Duration.seconds(86400),
-              defaultTtl: Duration.seconds(3600),
-            },
-          ],
-        },
-      ]
-    });
-
     const dist = new Distribution(this, 'Distribution', {
-      defaultBehavior: {
-        origin: S3BucketOrigin.withOriginAccessControl(bucket),
-        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-
-      },
       defaultRootObject: 'index.html',
+      defaultBehavior: {
+        // Using new S3BucketOrigin construct with OAC functionality built in! aws-cdk (and lib) version 2.156.0 and up
+        origin: S3BucketOrigin.withOriginAccessControl(bucket),
+        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS
+      },
+      domainNames: [domainName],
+      certificate,
     });
 
     new ARecord(
@@ -93,26 +59,73 @@ export class CdkSpaDeploymentOacStack extends Stack {
       'ARecord',
       {
         zone: hostedZone,
-        target: RecordTarget.fromAlias(new CloudFrontTarget(cloudFrontWebDistribution))
+        target: RecordTarget.fromAlias(new CloudFrontTarget(dist))
       }
     );
 
-    const policyStatement = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['s3:GetObject'],
-      principals: [new ServicePrincipal('cloudfront.amazonaws.com')],
-      resources: [bucket.arnForObjects('*')],
-      conditions: {
-        StringEquals: {
-          'AWS:SourceArn': `arn:aws:cloudfront::${process.env.CDK_DEFAULT_ACCOUNT}:distribution/${cloudFrontWebDistribution.distributionId}`
-        }
-      }
-    });
+    // OLD METHOD BELOW -- Deprecated
+    // Single Origin Access Control for the environment
+    // const oac = new CfnOriginAccessControl(this, `MyOAC-${environment}`, {
+    //   originAccessControlConfig: {
+    //     name: `MyOAC-${environment}`,
+    //     originAccessControlOriginType: 's3',
+    //     signingBehavior: 'always',
+    //     signingProtocol: 'sigv4',
+    //   },
+    // });
+
+    // CloudFront Distribution
+    // const cloudFrontWebDistribution = new CloudFrontWebDistribution(this, `MyDistribution-${environment}`, {
+    //   viewerCertificate: ViewerCertificate.fromAcmCertificate(certificate, {
+    //     aliases: [domainName],
+    //   }),
+    //   originConfigs: [
+    //     {
+    //       s3OriginSource: {
+    //         s3BucketSource: bucket,
+    //       },
+    //       behaviors: [
+    //         {
+    //           isDefaultBehavior: true,
+    //           allowedMethods: CloudFrontAllowedMethods.GET_HEAD,
+    //           compress: true,
+    //           cachedMethods: CloudFrontAllowedCachedMethods.GET_HEAD,
+    //           viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    //           minTtl: Duration.seconds(0),
+    //           maxTtl: Duration.seconds(86400),
+    //           defaultTtl: Duration.seconds(3600),
+    //         },
+    //       ],
+    //     },
+    //   ]
+    // });
+
+    // new ARecord(
+    //   this,
+    //   'ARecord',
+    //   {
+    //     zone: hostedZone,
+    //     target: RecordTarget.fromAlias(new CloudFrontTarget(cloudFrontWebDistribution))
+    //   }
+    // );
+
+    // Create a policy allowing cloudfront access to the bucket
+    // const policyStatement = new PolicyStatement({
+    //   effect: Effect.ALLOW,
+    //   actions: ['s3:GetObject'],
+    //   principals: [new ServicePrincipal('cloudfront.amazonaws.com')],
+    //   resources: [bucket.arnForObjects('*')],
+    //   conditions: {
+    //     StringEquals: {
+    //       'AWS:SourceArn': `arn:aws:cloudfront::${process.env.CDK_DEFAULT_ACCOUNT}:distribution/${cloudFrontWebDistribution.distributionId}`
+    //     }
+    //   }
+    // });
     
-    bucket.addToResourcePolicy(policyStatement);
+    // bucket.addToResourcePolicy(policyStatement);
+    // Override the OAC property with our OAC
+    // const cfnDistribution = cloudFrontWebDistribution.node.defaultChild as CfnDistribution
 
-    const cfnDistribution = cloudFrontWebDistribution.node.defaultChild as CfnDistribution
-
-    cfnDistribution.addPropertyOverride('DistributionConfig.Origins.0.OriginAccessControlId', oac.attrId);
+    // cfnDistribution.addPropertyOverride('DistributionConfig.Origins.0.OriginAccessControlId', oac.attrId);
   }
 }

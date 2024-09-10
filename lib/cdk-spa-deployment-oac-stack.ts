@@ -18,7 +18,7 @@ export class CdkSpaDeploymentOacStack extends Stack {
 
     const { environment } = props;
 
-    const domainName = 'modernserverless.io'
+    const domainName = 'YOUR_DOMAIN_HERE'
 
     const hostedZone = new HostedZone(
       this,

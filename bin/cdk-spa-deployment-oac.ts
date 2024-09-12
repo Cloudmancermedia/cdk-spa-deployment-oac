@@ -10,5 +10,3 @@ const environment = app.node.tryGetContext('environment') || 'dev'; // Default t
 new CdkSpaDeploymentOacStack(app, `S3CloudFrontOACStack-${environment}`, {
   environment: environment,
 });
-
-app.synth();

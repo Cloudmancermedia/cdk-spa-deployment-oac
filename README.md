@@ -1,6 +1,8 @@
 # CDK Single Page Web App Deployment with CloudFront/S3 and OAC
 A modification on the original SPA deployment repository, showing how to use CloudFront and S3 with an OAC rather than the deprecated OAI, with an SSL cert and custom domain name.
 
+Watch on [YouTube](https://www.youtube.com/watch?v=GB_R9S6XJqs)
+
 Update: [2.156.0](https://github.com/aws/aws-cdk/releases/tag/v2.156.0) has released with the OAC functionality built in! Thanks to [Grace Luo for her PR](https://github.com/aws/aws-cdk/pull/31254), this has been a hugely requested feature.
 
 ## Notes
